@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.venv/
+env/
+
+# IDE / editor settings
+.vscode/
+.idea/
+
+# macOS / Linux / Windows system files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Compiled C extensions
+*.so
+
+# Logs
+*.log
+
+# Python egg metadata
+*.egg-info/
+.eggs/
+build/
+dist/
+
+
+# Ignore everything inside output/
+outputs/*
+!outputs/.gitkeep
