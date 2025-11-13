@@ -1,8 +1,7 @@
-name: 2D_solar_system
+name: CollapsingBox_VortexHydro
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - matplotlib=3.10.6=py313h06a4308_0
   - numpy=2.3.3=py313h720eef7_0
-prefix: /home/louxbeo/anaconda3/envs/2D_solar_system
+prefix: /home/louxbeo/anaconda3/envs/CollapsingBox_VortexHydro
