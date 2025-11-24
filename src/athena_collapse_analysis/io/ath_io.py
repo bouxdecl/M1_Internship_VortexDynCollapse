@@ -2,16 +2,12 @@
 Input/Output utilities for Athena++ simulation data.
 ====================================================
 
-This module provides tools for reading, organizing, and post-processing
-Athena++ simulation output. It includes functions to
+This module provides tools for reading Athena++ simulation output.
+It includes functions to return a unified dictionary suitable for analysis or visualization.
 
-* discover and sort ``.athdf`` files,
-* load conservative fields with optional spatial and temporal downsampling,
-* compute derived hydrodynamical quantities (e.g. pressure),
 * read collapse diagnostics from ``.hst`` history files,
-* interpolate global collapse parameters (``Rglobal``, ``Lzglobal``) to match
-  the time stamps of the ``.athdf`` outputs,
-* return a unified dictionary suitable for analysis or visualization.
+* load conservative fields with optional spatial and temporal downsampling,
+* compute derived quantities (e.g. pressure, collapse decomposition),
 
 Notes
 -----
@@ -28,9 +24,7 @@ import os
 import numpy as np
 
 import sys
-sys.path.insert(0, '../../../athena_collapsingbox/vis/python')
-import athena_read
-
+from . import athena_read
 
 
 def get_hdf_files(data_path, verbose=True):
@@ -117,7 +111,7 @@ def open_hdf_files_cons(files, read_every=1, resol=(1, 1, 1), adia=True):
     v3 = np.zeros((Nt, Nx1, Nx2, Nx3))
 
     for k, f in enumerate(files_read):
-        print(f)
+        print('opening file ', f)
         _dic = athena_read.athdf(f)
 
         time[k] = _dic['Time']

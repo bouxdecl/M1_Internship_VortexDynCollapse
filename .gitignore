@@ -41,4 +41,3 @@ outputs/*
 tests/*
 !outputs/.gitkeep
 
-.github/*

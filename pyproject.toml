@@ -1,0 +1,29 @@
+[project]
+name = "athena_collapse_analysis"
+version = "0.1.0"
+description = "Tools to analyze Athena++ collapsing box simulations"
+authors = [
+    { name = "Leo Boux de Casson" }
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "h5py",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"

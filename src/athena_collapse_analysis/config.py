@@ -10,6 +10,7 @@ REPO_ROOT = PKG_DIR.parent.parent          # athena-analysis/
 # Default data directory (can be overridden by an environment variable)
 DATA_DIR = Path(os.getenv("ATHENA_COLLAPSE_ANALYSIS_DATA", REPO_ROOT / "data"))
 
+
 # Subdirectories
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"

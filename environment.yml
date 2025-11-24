@@ -2,6 +2,8 @@ name: CollapsingBox_VortexHydro
 channels:
   - conda-forge
 dependencies:
-  - matplotlib=3.10.6=py313h06a4308_0
-  - numpy=2.3.3=py313h720eef7_0
-prefix: /home/louxbeo/anaconda3/envs/CollapsingBox_VortexHydro
+  - matplotlib>=3.10.6
+  - numpy>=2.3.3
+  - h5py
+  - pytest
+prefix: /

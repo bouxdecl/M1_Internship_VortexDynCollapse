@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import athena_read
 
-from athena_collapse_analysis.ath_io import (
+from athena_collapse_analysis.io.ath_io import (
     get_hdf_files,
     open_hdf_files_cons,
     get_collapse_profile,

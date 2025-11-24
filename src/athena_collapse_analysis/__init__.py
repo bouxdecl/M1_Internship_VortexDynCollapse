@@ -4,8 +4,11 @@ athena_collapse_analysis — tools for running and analysing Athena++ simulation
 
 from importlib.metadata import version
 
+# Import subpackages
+from . import io
+from . import setup
+from . import analysis
+from . import utils
+
 __all__ = ["io", "setup", "analysis", "utils"]
 __version__ = "0.1.0"
-
-# Optional: expose common utilities here for convenience
-from .config import DATA_DIR, RAW_DIR, PROCESSED_DIR, PLOTS_DIR
