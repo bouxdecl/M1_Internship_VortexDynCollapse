@@ -23,7 +23,6 @@ import glob
 import os
 import numpy as np
 
-import sys
 from . import athena_read
 
 

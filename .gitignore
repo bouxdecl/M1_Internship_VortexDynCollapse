@@ -35,9 +35,8 @@ dist/
 
 
 # Ignore everything inside output/
-outputs/*
-!outputs/.gitkeep
+data/
 
-tests/*
-!outputs/.gitkeep
+trash/
+
 

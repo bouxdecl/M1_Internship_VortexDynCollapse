@@ -6,9 +6,8 @@ from importlib.metadata import version
 
 # Import subpackages
 from . import io
-from . import setup
 from . import analysis
 from . import utils
 
-__all__ = ["io", "setup", "analysis", "utils"]
+__all__ = ["io", "analysis", "utils"]
 __version__ = "0.1.0"

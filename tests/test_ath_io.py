@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pytest
-import athena_read
 
 from athena_collapse_analysis.io.ath_io import (
     get_hdf_files,
