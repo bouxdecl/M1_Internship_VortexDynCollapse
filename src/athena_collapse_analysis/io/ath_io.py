@@ -48,21 +48,29 @@ def get_hdf_files(data_path, verbose=True):
     return files
 
 
-
-def open_hdf_files_cons(files, read_every=1, resol=(1, 1, 1), adia=True):
+def open_hdf_files(
+    files, 
+    read_every=1, 
+    resol=(1, 1, 1), 
+    adia=True, 
+    confirm_memory=False
+):
     """
     Load conservative Athena++ `.athdf` output into a dictionary.
+    Print memory usage estimation before loading if `confirm_memory` is `True`.
 
     Parameters
     ----------
     files : list of str
-        List of paths to `.athdf` files.
-    read_every : int, optional
-        Read every Nth file to subsample the time series. Default is 1.
-    resol : tuple of int, optional
-        Downsampling factors in (x1, x2, x3). Default is (1, 1, 1).
-    adia : bool, optional
-        If True, simulation is adiabatic, reads also total energy `Etot`. If False, skips it.
+        Paths to athdf files.
+    read_every : int
+        Load every Nth file.
+    resol : tuple of int
+        Downsampling factors.
+    adia : bool
+        Whether to load total energy Etot if the simulation is adiabatic.
+    confirm_memory : bool, default False
+        If True, ask the user to confirm after showing RAM estimate.
 
     Returns
     -------
@@ -85,22 +93,47 @@ def open_hdf_files_cons(files, read_every=1, resol=(1, 1, 1), adia=True):
     """
 
     factor1, factor2, factor3 = resol
-
     files_read = files[::read_every]
     Nt = len(files_read)
 
-    # Coordinates (z, x, y)
-    _dic = athena_read.athdf(files_read[0])
+    # --- Read header of first file for coordinate sizes ---
+    _dic0 = athena_read.athdf(files_read[0])
 
-    x1, x2, x3 = _dic['x1v'], _dic['x2v'], _dic['x3v']
+    # Apply downsampling to coordinate vectors
+    Nx1 = len(_dic0['x1v'][::factor1])
+    Nx2 = len(_dic0['x2v'][::factor2])
+    Nx3 = len(_dic0['x3v'][::factor3])
 
-    x1 = x1[::factor1]
-    x2 = x2[::factor2]
-    x3 = x3[::factor3]
+    # Number of 3D fields to store
+    n_fields = 4  # rho, v1, v2, v3
+    if adia:
+        n_fields += 1  # Etot
 
-    Nx1, Nx2, Nx3 = len(x1), len(x2), len(x3)
+    # --- Compute memory estimate ---
+    n_cells = Nt * Nx1 * Nx2 * Nx3
+    bytes_total_est = n_cells * n_fields * 8  # float64 = 8 bytes
+    gb_est = bytes_total_est / (1024**3)
 
-    # Initialize arrays with zeros (better semantics)
+    print(
+        f"\nEstimated RAM required: {gb_est:.3f} GB\n"
+        f"  snapshots: {Nt}\n"
+        f"  resolution: {Nx1} × {Nx2} × {Nx3}\n"
+        f"  fields: {n_fields}\n"
+        f"  downsampling resol = {resol}\n"
+    )
+
+    # --- Ask user for confirmation ---
+    if confirm_memory:
+        ans = input("Proceed with loading? (y/n): ").strip().lower()
+        if ans not in ("y", "yes"):
+            print("Aborted by user.")
+            return None
+
+    # --- Proceed with actual loading ---
+    x1 = _dic0['x1v'][::factor1]
+    x2 = _dic0['x2v'][::factor2]
+    x3 = _dic0['x3v'][::factor3]
+
     time = np.zeros(Nt)
     rho = np.zeros((Nt, Nx1, Nx2, Nx3))
     if adia:
@@ -110,35 +143,33 @@ def open_hdf_files_cons(files, read_every=1, resol=(1, 1, 1), adia=True):
     v3 = np.zeros((Nt, Nx1, Nx2, Nx3))
 
     for k, f in enumerate(files_read):
-        print('opening file ', f)
+        print("opening file", f)
         _dic = athena_read.athdf(f)
 
         time[k] = _dic['Time']
 
-        # Precompute downsampled transposed density once
-        dens = _dic['dens'].transpose(2, 1, 0)[::factor1, ::factor2, ::factor3] #Athena++ stores array data as (z, x, y)
+        dens = _dic['dens'].transpose(2, 1, 0)[::factor1, ::factor2, ::factor3]
         rho[k] = dens
 
         if adia:
             Etot[k] = _dic['Etot'].transpose(2, 1, 0)[::factor1, ::factor2, ::factor3]
 
-        # Precompute mom arrays
         mom1 = _dic['mom1'].transpose(2, 1, 0)[::factor1, ::factor2, ::factor3]
         mom2 = _dic['mom2'].transpose(2, 1, 0)[::factor1, ::factor2, ::factor3]
         mom3 = _dic['mom3'].transpose(2, 1, 0)[::factor1, ::factor2, ::factor3]
 
-        # Compute velocity with elementwise division
         v1[k] = mom1 / dens
         v2[k] = mom2 / dens
         v3[k] = mom3 / dens
 
-    del _dic
+    dic_out = {'x1': x1, 'x2': x2, 'x3': x3, 'time': time,
+               'rho': rho, 'v1': v1, 'v2': v2, 'v3': v3}
 
-    dic_data = {'x1': x1, 'x2': x2, 'x3': x3, 'time': time, 'rho': rho, 'v1': v1, 'v2': v2, 'v3': v3}
     if adia:
-        dic_data['Etot'] = Etot
+        dic_out['Etot'] = Etot
 
-    return dic_data
+    return dic_out
+
 
 
 # ------------------------------------------------------------
@@ -198,11 +229,11 @@ def get_collapse_profile(data_path):
 def add_collapse_param(dic_data, time_hst, Rglobal_hst, Lzglobal_hst):
     """
     Attach interpolated collapse parameters to a data dictionary.
-
+    
     Parameters
     ----------
     dic_data : dict
-        Output dictionary from `open_hdf_files_cons`
+        Output dictionary from `open_hdf_files`
     time_hst : ndarray
         Time array from the `.hst` file.
     Rglobal_hst : ndarray
@@ -243,13 +274,14 @@ def add_collapse_param(dic_data, time_hst, Rglobal_hst, Lzglobal_hst):
 # ------------------------------------------------------------
 # Full wrapper: load HDF files + add collapse parameters
 # ------------------------------------------------------------
-def load_cons_with_collapse(data_path, files, read_every=1, resol=(1,1,1), adia=True):
+def load_with_collapse(data_path, files, read_every=1, resol=(1,1,1), adia=True, confirm_memory=False):
     """
     Load conservative fields and attach interpolated collapse diagnostics.
+    Print memory usage estimation before loading if `confirm_memory` is `True`.
 
     This wrapper:
     1. Loads conservative variables from `.athdf` files using
-       `open_hdf_files_cons`.
+       `open_hdf_files`.
     2. Loads collapse diagnostics from the `.hst` file via
        `get_collapse_profile`.
     3. Interpolates the collapse diagnostics to the times of the
@@ -267,89 +299,18 @@ def load_cons_with_collapse(data_path, files, read_every=1, resol=(1,1,1), adia=
         Downsampling factors along (x1, x2, x3). Default is (1, 1, 1).
     adia : bool, optional
         If True, load the total energy field `Etot`.
+    confirm_memory : bool, default False
+        If True, ask the user to confirm after showing RAM estimate.
 
     Returns
     -------
     dict
-        Conservative variables with added collapse profiles:
+        dict variables of open_hdf_files with added collapse profiles:
         - 'Rglobal' : ndarray
         - 'Lzglobal' : ndarray
     """
-    dic_list = open_hdf_files_cons(files, read_every=read_every, resol=resol, adia=adia)
+    dic_list = open_hdf_files(files, read_every=read_every, resol=resol, adia=adia, confirm_memory=confirm_memory)
     time_hst, Rglobal_hst, Lzglobal_hst = get_collapse_profile(data_path)
 
     return add_collapse_param(dic_list, time_hst, Rglobal_hst, Lzglobal_hst)
-
-
-
-
-# --- Derived quantities
-
-def pressure_from_conservatives(rho, Etot, v1, v2, v3, gamma = 5/3):
-    """
-    Compute pressure from conservative variables.
-
-    Parameters
-    ----------
-    rho : ndarray
-        Density.
-    Etot : ndarray
-        Total energy density.
-    v1, v2, v3 : ndarray
-        Velocity components.
-    gamma : float, optional
-        Adiabatic index. Default is 5/3.
-
-    Returns
-    -------
-    p : ndarray
-        Thermodynamic pressure.
-    """
-    KE = 0.5 * rho * (v1**2 + v2**2 + v3**2)
-    e = Etot - KE
-    p = (gamma - 1) * e
-    return p
-
-
-
-def collapse_param_decomposition(R, Lz):
-    """
-    Decompose collapse diagnostics into scale and anisotropy parameters.
-
-    From the collapse global param `R`and `Lz`, constructs
-
-    * a scale parameter ``S`` defined as::
-
-          S = ( R / R[0]**2 * Lz / Lz[0] )**(1/3)
-
-    * an anisotropy parameter ``alpha`` defined as::
-
-          alpha = (R / R[0]) / (Lz / Lz[0])
-
-    Parameters
-    ----------
-    R : ndarray of shape (Nt,)
-        Collapse global param R as a function of time.
-    Lz : ndarray of shape (Nt,)
-        Collapse global param Lz as a function of time.
-
-    Returns
-    -------
-    S : ndarray of shape (Nt,)
-        Scale parameter describing isotropic contraction.
-    alpha : ndarray of shape (N,)
-        Anisotropy parameter describing deformation of the collapse.
-
-    Raises
-    ------
-    ValueError
-        If ``R`` and ``Lz`` do not have the same shape.
-    """
-    if R.shape != Lz.shape:
-        raise ValueError("R and Lz must have the same shape.")
-
-    S = (R/R[0]**2 * Lz/Lz[0])**(1/3)
-    alpha = (R/R[0]) / (Lz/Lz[0])
-    return S, alpha
-
 

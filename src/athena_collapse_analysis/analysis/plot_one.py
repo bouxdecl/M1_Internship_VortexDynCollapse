@@ -10,7 +10,7 @@ import numpy as np
 from athena_collapse_analysis.config import RAW_DIR
 from athena_collapse_analysis.io.ath_io import (
     get_hdf_files,
-    open_hdf_files_cons,
+    open_hdf_files,
 )
 
 
@@ -28,7 +28,7 @@ def plot_first_rho(path_file, slice_index=None):
     """
 
     # 1. open file
-    data = open_hdf_files_cons([path_file], read_every=1, adia=False)
+    data = open_hdf_files([path_file], read_every=1, adia=False)
 
     rho = data["rho"]               # shape: (Nt, Nx1, Nx2, Nx3)
     x1  = data["x1"]
