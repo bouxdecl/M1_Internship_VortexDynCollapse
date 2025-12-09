@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from athena_collapse_analysis.io.ath_io import (
     get_hdf_files,
-    load_with_collapse,
+    open_hdf_files_with_collapse,
     get_collapse_profile,
 )
 
@@ -58,7 +58,7 @@ def plot_collapse_profiles(path_simu, plot=True, save_path=None):
     for i, f in enumerate(files):
         print(f"[{i+1}/{N}] Loading {f}")
 
-        dic = load_with_collapse(path_simu, [f], read_every=1, adia=True)
+        dic = open_hdf_files_with_collapse(path_simu, [f], read_every=1, adia=True)
         t0 = dic["time"][0]  # scalar
         t_snap[i] = t0
 

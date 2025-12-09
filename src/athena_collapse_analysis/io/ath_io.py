@@ -274,7 +274,7 @@ def add_collapse_param(dic_data, time_hst, Rglobal_hst, Lzglobal_hst):
 # ------------------------------------------------------------
 # Full wrapper: load HDF files + add collapse parameters
 # ------------------------------------------------------------
-def load_with_collapse(data_path, files, read_every=1, resol=(1,1,1), adia=True, confirm_memory=False):
+def open_hdf_files_with_collapse(data_path, files, read_every=1, resol=(1,1,1), adia=True, confirm_memory=False):
     """
     Load conservative fields and attach interpolated collapse diagnostics.
     Print memory usage estimation before loading if `confirm_memory` is `True`.

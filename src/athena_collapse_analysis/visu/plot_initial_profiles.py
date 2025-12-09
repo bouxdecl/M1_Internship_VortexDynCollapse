@@ -7,7 +7,6 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-from athena_collapse_analysis.config import RAW_DIR
 from athena_collapse_analysis.io.ath_io import (
     get_hdf_files,
     open_hdf_files,
@@ -99,6 +98,7 @@ def plot_initial_profiles(path_file, show=True, save_path=None):
 
 if __name__ == "__main__":
 
+    from athena_collapse_analysis.config import RAW_DIR
     path_simu = os.path.join(RAW_DIR, "typical_simu_20251311/")
     files = get_hdf_files(path_simu)
 
