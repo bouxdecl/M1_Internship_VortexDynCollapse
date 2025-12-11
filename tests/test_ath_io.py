@@ -4,7 +4,7 @@ import pytest
 
 from athena_collapse_analysis.io.ath_io import (
     get_hdf_files,
-    open_hdf_files_cons,
+    open_hdf_files,
     get_collapse_profile,
     add_collapse_param,
     pressure_from_conservatives,
@@ -25,11 +25,11 @@ def test_get_hdf_files(sample_dir):
 
 
 # ======================================================================
-# Tests: open_hdf_files_cons
+# Tests: open_hdf_files
 # ======================================================================
 
-def test_open_hdf_files_cons_basic(hdf_files):
-    data = open_hdf_files_cons(hdf_files, read_every=1, adia=True)
+def test_open_hdf_files_basic(hdf_files):
+    data = open_hdf_files(hdf_files, read_every=1, adia=True)
 
     # Required keys
     for key in ["x1", "x2", "x3", "time", "rho", "v1", "v2", "v3", "Etot"]:
@@ -42,8 +42,8 @@ def test_open_hdf_files_cons_basic(hdf_files):
     assert data["v1"].shape == data["rho"].shape
 
 
-def test_open_hdf_files_cons_no_adiabatic(hdf_files):
-    data = open_hdf_files_cons(hdf_files, adia=False)
+def test_open_hdf_files_no_adiabatic(hdf_files):
+    data = open_hdf_files(hdf_files, adia=False)
     assert "Etot" not in data or data["Etot"] is None
 
 
@@ -136,7 +136,7 @@ def test_collapse_param_decomposition_valid():
         S, (R / R[0]**2 * Lz / Lz[0]) ** (1/3)
     )
     assert np.allclose(
-        alpha, (R / R[0]) / (Lz / Lz[0])
+        alpha, (R / R[0]) / (Lz / Lz[0]) ** (1/3)
     )
 
 
