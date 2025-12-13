@@ -14,7 +14,7 @@ from athena_collapse_analysis.io.ath_io import (
 )
 
 
-def plot_first_rho(path_file, slice_index=None):
+def plot_density(path_file, slice_index=None):
     """
     Load first rho field from a directory of .athdf files and plot it.
 
@@ -45,11 +45,11 @@ def plot_first_rho(path_file, slice_index=None):
 
     # 5. Make the plot
     plt.figure(figsize=(6, 5))
-    plt.pcolormesh(x2, x1, rho_slice, shading='auto')
+    plt.pcolormesh(x2, x1, rho_slice, shading='auto', cmap='RdBu_r')
     plt.colorbar(label="rho")
-    plt.xlabel("x2")
-    plt.ylabel("x1")
-    plt.title(f"rho at t = {data['time'][0]:.3f}, slice x3 index = {slice_index}")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title(f"density (simulation) at t = {data['time'][0]:.3f}")
     plt.tight_layout()
     plt.show()
 
@@ -59,4 +59,4 @@ if __name__ == "__main__":
     path_simu = os.path.join(RAW_DIR, "typical_simu_20251311/")
     files = get_hdf_files(path_simu)
 
-    plot_first_rho(files[0])
+    plot_density(files[0])

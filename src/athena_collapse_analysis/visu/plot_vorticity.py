@@ -27,7 +27,7 @@ from athena_collapse_analysis.io.ath_io import (
 from athena_collapse_analysis.utils import collapse_param_decomposition
 
 
-def vorticity_single_plot(path_file, file, show=True, save_path=None,
+def plot_vorticity(path_file, file, show=True, save_path=None,
                        vmin=0.0, vmax=None, cmap='RdBu_r',
                        nz_slice=0, vort_type="simulation", crop=None):
     """
@@ -154,4 +154,4 @@ if __name__ == "__main__":
     path_simu = os.path.join(RAW_DIR, "typical_simu_20251311/")
     files = get_hdf_files(path_simu)
 
-    open_hdf_files_with_collapse(path_simu, files[-1], vort_type="physical", crop=(-1, 1, -1, 1))
+    plot_vorticity(path_simu, files[-1], vort_type="physical", crop=(-1, 1, -1, 1))
