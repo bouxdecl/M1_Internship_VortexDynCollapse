@@ -126,7 +126,7 @@ def compute_conservation_laws(path_simu, files, nz_slice=None, verbose=False):
 # ============================================================
 # Plotting routine
 # ============================================================
-def plot_conservation_laws(time, Mtot, Omega_phys):
+def plot_conservation_laws(time, Mtot, Omega_phys, show=True, save_path=None):
     """
     Plot relative conservation errors.
     """
@@ -158,7 +158,10 @@ def plot_conservation_laws(time, Mtot, Omega_phys):
     axes[1].grid(True, which="both")
 
     plt.tight_layout()
-    plt.show()
+    if save_path is not None:
+        plt.savefig(save_path)
+    if show:
+        plt.show()
 
     return fig, axes
 
