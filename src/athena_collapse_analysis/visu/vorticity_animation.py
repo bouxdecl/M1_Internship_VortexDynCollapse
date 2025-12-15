@@ -21,7 +21,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-from athena_collapse_analysis.utils import collapse_param_decomposition
+from athena_collapse_analysis.utils import collapse_param_decomposition, compute_physical_vorticity
 from athena_collapse_analysis.io.ath_io import get_hdf_files, open_hdf_files_with_collapse
 
 
@@ -160,15 +160,9 @@ def make_vorticity_movie(path_simu, outname=None,
             Xplot, Yplot = x, y
 
         elif vort_type == "physical":
-            R = data['Rglobal'][0]
-            Lz = data['Lzglobal'][0]
-            S, alpha = collapse_param_decomposition(np.array([R]), np.array([Lz]))
-            S, alpha = S[0], alpha[0]
+            omegaTilda, S, alpha = compute_physical_vorticity(data)
 
-            gxx = S**2 * alpha**-4
-            gyy = S**2 * alpha**2
-            omega_tilda = gyy * dvy_dx - gxx * dvx_dy
-            vort = omega_tilda * alpha
+            vort = omegaTilda
 
             # Rescaled coordinates
             Xplot = x * alpha**(-3/2)

@@ -24,7 +24,7 @@ from athena_collapse_analysis.io.ath_io import (
     get_collapse_profile,
 )
 
-from athena_collapse_analysis.utils import collapse_param_decomposition
+from athena_collapse_analysis.utils import collapse_param_decomposition, compute_physical_vorticity
 
 
 def plot_vorticity(path_file, file, show=True, save_path=None,
@@ -62,19 +62,10 @@ def plot_vorticity(path_file, file, show=True, save_path=None,
         Yplot = y
 
     elif vort_type == "physical":
-        # --- compute collapse parameters (global) ---
-        R = data["Rglobal"][0]
-        Lz = data["Lzglobal"][0]
+        omegaTilda, S, alpha = compute_physical_vorticity(data)
 
-        S, alpha = collapse_param_decomposition(R, Lz)
-
-        # metric coefficients
-        gxx = S**2 * alpha**(-4)
-        gyy = S**2 * alpha**2
-
-        # physical vorticity
-        vort = alpha * (gyy * dvydx - gxx * dvxdy)
-
+        vort = omegaTilda
+        
         # rescaled coordinates
         Xplot = x * alpha**(-3/2)
         Yplot = y * alpha**(3/2)

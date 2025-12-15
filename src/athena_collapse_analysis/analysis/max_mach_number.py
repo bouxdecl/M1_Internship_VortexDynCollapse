@@ -3,6 +3,7 @@
 Maximum Mach number diagnostics for Athena++ collapse simulations.
 
 For each output file:
+- Compute local sound speed c_s with adiabatic index gamma
 - Computes Mach number M = |v| / c_s
 - Extracts max(M) over the domain
 
@@ -26,7 +27,7 @@ from athena_collapse_analysis.io.ath_io import (
 # Core routine
 # ============================================================
 
-def compute_max_mach_number(path_simu, files, gamma=5/3, nz_slice=None, verbose=False):
+def compute_max_mach_number(path_simu, files, gamma=5/3, cs_0=1.0, nz_slice=None, verbose=False):
     """
     Compute maximum Mach number file by file.
 
@@ -93,6 +94,9 @@ def compute_max_mach_number(path_simu, files, gamma=5/3, nz_slice=None, verbose=
         mach = vmag / cs
         Mach_max[i] = np.nanmax(mach)
 
+        Mach_x = np.nanmax(np.abs(vx) / (cs_0/data["Lzglobal"][0]))
+        Mach_y = np.nanmax(np.abs(vy) / (cs_0/data["Rglobal"][0] ))
+
         if verbose:
             print(
                 f"[{i+1}/{Nfiles}] "
@@ -100,21 +104,23 @@ def compute_max_mach_number(path_simu, files, gamma=5/3, nz_slice=None, verbose=
                 f"Mach_max={Mach_max[i]:.6e}"
             )
 
-    return time, Mach_max
+    return time, Mach_x, Mach_y, Mach_max
 
 
 # ============================================================
 # Plotting
 # ============================================================
 
-def plot_max_mach_number(time, Mach_max, show=True, save_path=None):
+def plot_max_mach_number(time, Mach_max, Mach_x, Mach_y, show=True, save_path=None):
     """
     Plot maximum Mach number vs time.
     """
 
     fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
-    ax.plot(time, Mach_max)
+    ax.plot(time, Mach_max, label='Mach_max')
+    ax.plot(time, Mach_x, label='Mach_x')
+    ax.plot(time, Mach_y, label='Mach_y')
     ax.set_yscale("log")
     ax.set_xlabel("time")
     ax.set_ylabel("Maximum Mach number")
@@ -144,11 +150,11 @@ if __name__ == "__main__":
     path_simu = os.path.join(RAW_DIR, "typical_simu_20251311/")
     files = get_hdf_files(path_simu)
 
-    time, Mach_max = compute_max_mach_number(
+    time, Mach_x, Mach_y, Mach_max = compute_max_mach_number(
         path_simu,
         files,
         nz_slice=None,   # or e.g. nz_slice=0
         verbose=True
     )
 
-    plot_max_mach_number(time, Mach_max)
+    plot_max_mach_number(time, Mach_max, Mach_x, Mach_y)

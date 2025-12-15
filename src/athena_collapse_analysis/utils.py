@@ -33,6 +33,50 @@ def pressure_from_conservatives(rho, Etot, v1, v2, v3, gamma = 5/3):
 
 
 
+def compute_physical_vorticity(data, nz_slice=0):
+    """
+    Compute physical vorticity ω̃ from velocity fields.
+
+    Parameters
+    ----------
+    data : dict
+        Athena++ HDF5 output as returned by open_hdf_files_with_collapse
+    nz_slice : int
+        z-index slice to extract
+
+    Returns
+    -------
+    omega : ndarray
+        Physical vorticity ω̃ at the given slice
+    S : float
+        Collapse scale factor
+    alpha : float
+        Collapse anisotropy parameter
+    """
+    x, y = data["x1"], data["x2"]
+    dx, dy = x[1] - x[0], y[1] - y[0]
+
+    vx = data["v1"][0, :, :, nz_slice]
+    vy = data["v2"][0, :, :, nz_slice]
+
+    dvydx = np.gradient(vy, dx, axis=0)
+    dvxdy = np.gradient(vx, dy, axis=1)
+
+    R = data["Rglobal"][0]
+    Lz = data["Lzglobal"][0]
+    S, alpha = collapse_param_decomposition(R, Lz)
+
+    gxx = S**2 * alpha**(-4)
+    gyy = S**2 * alpha**2
+
+    omega = alpha * (gyy * dvydx - gxx * dvxdy)
+
+    return omega, S, alpha
+
+
+
+
+
 def collapse_param_decomposition(R, Lz, R_0=1.0, Lz_0=1.0):
     """
     Decompose collapse diagnostics into scale and anisotropy parameters.
