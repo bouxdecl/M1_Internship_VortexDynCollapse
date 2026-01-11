@@ -52,6 +52,8 @@ def compute_Mach_number(path_simu, files, gamma=5/3, cs_0=1.0, nz_slice=None, ve
     Nfiles = len(files)
     time = np.zeros(Nfiles)
     Mach_max = np.zeros(Nfiles)
+    Mach_x = np.zeros(Nfiles)
+    Mach_y = np.zeros(Nfiles)
 
     for i, f in enumerate(files):
         data = open_hdf_files_with_collapse(
@@ -72,14 +74,8 @@ def compute_Mach_number(path_simu, files, gamma=5/3, cs_0=1.0, nz_slice=None, ve
         vy = data["v2"][0]
         vz = data["v3"][0]
 
-        Etot = data["Etot"][0]
-        press = utils.pressure_from_conservatives(
-            rho, Etot, vx, vy, vz, gamma = gamma
-        )
-
         if nz_slice is not None:
             rho = rho[:, :, nz_slice]
-            press = press[:, :, nz_slice]
             vx = vx[:, :, nz_slice]
             vy = vy[:, :, nz_slice]
             vz = vz[:, :, nz_slice]
@@ -88,14 +84,15 @@ def compute_Mach_number(path_simu, files, gamma=5/3, cs_0=1.0, nz_slice=None, ve
         # Mach number
         # ----------------------------------------------------
 
-        vmag = np.sqrt(vx**2 + vy**2 + vz**2)
-        cs = np.sqrt(gamma * press / rho)
+        cs = cs_0
+        vx_phys = vx * data["Lzglobal"][0]
+        vy_phys = vy * data["Rglobal"][0]
+        vz_phys = vz * data["Rglobal"][0]
 
-        mach = vmag / cs
-        Mach_max[i] = np.nanmax(mach)
+        Mach_x[i] = np.nanmax(np.abs(vx_phys) / cs)
+        Mach_y[i] = np.nanmax(np.abs(vy_phys) / cs)
 
-        Mach_x = np.nanmax(np.abs(vx) / (cs_0/data["Lzglobal"][0]))
-        Mach_y = np.nanmax(np.abs(vy) / (cs_0/data["Rglobal"][0] ))
+        Mach_max[i] = np.nanmax(np.sqrt(vx_phys**2 + vy_phys**2 + vz_phys**2) / cs)
 
         if verbose:
             print(
@@ -128,6 +125,7 @@ def plot_mach_number(time, Mach_max, Mach_x, Mach_y, show=True, save_path=None):
     ax.grid(True, which="both")
 
     plt.tight_layout()
+    plt.legend()
 
     if save_path is not None:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
@@ -140,9 +138,8 @@ def plot_mach_number(time, Mach_max, Mach_x, Mach_y, show=True, save_path=None):
 
 
 # ============================================================
-# Script entry point
+# Main (example usage)
 # ============================================================
-
 if __name__ == "__main__":
 
     from athena_collapse_analysis.config import RAW_DIR
@@ -157,4 +154,4 @@ if __name__ == "__main__":
         verbose=True
     )
 
-    plot_mach_number(time, Mach_max, Mach_x, Mach_y)
+    plot_mach_number(time, Mach_max, Mach_x, Mach_y, show=True, save_path=None)

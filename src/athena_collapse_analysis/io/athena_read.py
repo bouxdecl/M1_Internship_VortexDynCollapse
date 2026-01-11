@@ -1,4 +1,8 @@
 """
+
+Note: This is the only file in the Athena Collapse Analysis package that is not original, 
+it comes from https://github.com/PrincetonUniversity/athena/blob/main/vis/python/athena_read.py
+
 Read Athena++ output data files.
 """
 
