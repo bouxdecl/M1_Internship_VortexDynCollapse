@@ -214,7 +214,37 @@ def plot_streamfunction_and_ellipses(
     return fig, ax
 
 
+# ============================================================
+# High-level driver
+# ============================================================
 
+def process_single_file(path_simu, file, nz_slice=0, plot=True, n_ellipses=40, xlim=None, ylim=None):
+    """Full pipeline for a single Athena++ output."""
+    data = open_hdf_files_with_collapse(path_simu, files=[file])
+
+    x, y = data["x1"], data["x2"]
+    dx, dy = x[1] - x[0], y[1] - y[0]
+
+    omega, S, alpha = compute_physical_vorticity(data, nz_slice)
+    psi = solve_streamfunction(omega, dx, dy, alpha)
+
+    a32 = alpha**(3 / 2)
+    X = x * a32**-1
+    Y = y * a32
+
+    contours = extract_contours(X, Y, psi, levels=n_ellipses)
+    ellipses = fit_ellipses_from_contours(contours)
+
+    if plot:
+        plot_streamfunction_and_ellipses(X, Y, psi, ellipses, xlim=xlim, ylim=ylim)
+    
+    return ellipses
+
+
+
+# ============================================================
+# Script entry point
+# ============================================================
 def plot_multi_time_ellipse_profiles(
     path_simu,
     files,
@@ -288,32 +318,6 @@ def plot_multi_time_ellipse_profiles(
 
 
 
-# ============================================================
-# High-level driver
-# ============================================================
-
-def process_single_file(path_simu, file, nz_slice=0, plot=True, n_ellipses=40, xlim=None, ylim=None):
-    """Full pipeline for a single Athena++ output."""
-    data = open_hdf_files_with_collapse(path_simu, files=[file])
-
-    x, y = data["x1"], data["x2"]
-    dx, dy = x[1] - x[0], y[1] - y[0]
-
-    omega, S, alpha = compute_physical_vorticity(data, nz_slice)
-    psi = solve_streamfunction(omega, dx, dy, alpha)
-
-    a32 = alpha**(3 / 2)
-    X = x * a32**-1
-    Y = y * a32
-
-    contours = extract_contours(X, Y, psi, levels=n_ellipses)
-    ellipses = fit_ellipses_from_contours(contours)
-
-    if plot:
-        plot_streamfunction_and_ellipses(X, Y, psi, ellipses, xlim=xlim, ylim=ylim)
-    
-    return ellipses
-
 
 # ============================================================
 # Script entry point
@@ -331,21 +335,19 @@ if __name__ == "__main__":
         files[-1],
         nz_slice=0,
         plot=True,
-        n_ellipses=50,
+        n_ellipses=40,
         xlim=1.5,
         ylim=1.5,
     )
 
-
     print(f"Found {len(ellipses)} ellipses")
 
     plot_multi_time_ellipse_profiles(
-    path_simu,
-    files,
-    time_indices=[5, 20, 40, 60],
-    rmin_skip=1,
-    xmax_plot=3.0,
-    ylim_tuple_eta=(0.99, 1.1),
-    ylim_tuple_theta=(0, 92),
-    )
-
+        path_simu,
+        files,
+        time_indices=[5, 20, 40, 60],
+        rmin_skip=1,
+        xmax_plot=3.0,
+        ylim_tuple_eta=(0.99, 1.1),
+        ylim_tuple_theta=(0, 92),
+        )
