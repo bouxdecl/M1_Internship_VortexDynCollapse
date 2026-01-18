@@ -22,18 +22,8 @@ from athena_collapse_analysis.io.ath_io import (
 from athena_collapse_analysis.utils import collapse_param_decomposition
 
 
-def print_field_dtypes(data):
-    print("Field dtypes:")
-    for k, v in data.items():
-        if isinstance(v, np.ndarray):
-            print(f"  {k:12s}: dtype={v.dtype}, shape={v.shape}")
 
-
-# ============================================================
-# Core routine
-# ============================================================
-
-def compute_conservation_laws(path_simu, files, nz_slice=None, verbose=False):
+def compute_conservation_laws(path_simu, files, nz_slice=None):
     """
     Compute conserved quantities file by file.
 
@@ -66,32 +56,21 @@ def compute_conservation_laws(path_simu, files, nz_slice=None, verbose=False):
         data = open_hdf_files_with_collapse(
             path_simu, files=[f], read_every=1
         )
-
-        if verbose and i == Nfiles - 1:
-            print_field_dtypes(data)
-
-        # --- time ---
         time[i] = data["time"][0]
 
-        # --- collapse parameters ---
+        # collapse parameters
         R = data["Rglobal"][0]
         Lz = data["Lzglobal"][0]
         S, alpha = collapse_param_decomposition(R, Lz)
 
-        # ====================================================
-        # Total density (mass)
-        # ====================================================
+        # total mass
         rho = data["rho"][0]  # (Nx, Ny, Nz)
-
         if nz_slice is not None:
             rho = rho[:, :, nz_slice]
 
-        # collapse-rescaled volume factor
         Mtot[i] = np.sum(rho) * S**3
 
-        # ====================================================
-        # Total physical vorticity
-        # ====================================================
+        # total conserved vorticity (rescaled physical)
         x = data["x1"]
         y = data["x2"]
         dx = x[1] - x[0]
@@ -99,15 +78,12 @@ def compute_conservation_laws(path_simu, files, nz_slice=None, verbose=False):
 
         vx = data["v1"][0]
         vy = data["v2"][0]
-
         if nz_slice is not None:
             vx = vx[:, :, nz_slice]
             vy = vy[:, :, nz_slice]
 
         dvydx = np.gradient(vy, dx, axis=0)
         dvxdy = np.gradient(vx, dy, axis=1)
-
-        # metric coefficients
         gxx = S**2 * alpha**(-4)
         gyy = S**2 * alpha**2
 
@@ -123,19 +99,27 @@ def compute_conservation_laws(path_simu, files, nz_slice=None, verbose=False):
     return time, Mtot, Omega_phys
 
 
-# ============================================================
-# Plotting routine
-# ============================================================
+
 def plot_conservation_laws(time, Mtot, Omega_phys, show=True, save_path=None):
     """
     Plot relative conservation errors.
+
+    Parameters
+    ----------
+    time : (Nt,) array
+    Mtot : (Nt,) array
+        Total mass (with collapse rescaling)
+    Omega_phys : (Nt,) array
+        Total physical vorticity
+    show : bool
+        If True, display the figure
+    save_path : str or None
+        If not None, save the figure to this path
     """
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-    # --------------------------------------------------------
-    # Total density conservation
-    # --------------------------------------------------------
+    # Mass conservation
     rel_mass = (Mtot - Mtot[0]) / Mtot[0]
 
     axes[0].plot(time, rel_mass)
@@ -145,9 +129,7 @@ def plot_conservation_laws(time, Mtot, Omega_phys, show=True, save_path=None):
     axes[0].set_ylabel("Relative error")
     axes[0].grid(True, which="both")
 
-    # --------------------------------------------------------
-    # Total physical vorticity conservation
-    # --------------------------------------------------------
+    # Rescaled vorticity conservation
     rel_vort = (Omega_phys - Omega_phys[0]) / Omega_phys[0]
 
     axes[1].plot(time, rel_vort)

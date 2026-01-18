@@ -23,13 +23,79 @@ from athena_collapse_analysis.io.ath_io import (
     open_hdf_files_with_collapse,
 )
 
-# ============================================================
-# Fitting one ellipse from points
-# ============================================================
+
+def solve_streamfunction(omega, dx, dy, alpha):
+    """
+    Solve the Poisson equation Δψ = -ω̃ using FFT in 2D.
+
+    Parameters
+    ----------
+    omega : ndarray
+        Physical vorticity ω̃
+    dx, dy : float
+        Grid spacing in x and y
+    alpha : float
+        Collapse anisotropy parameter
+
+    Returns
+    -------
+    psi : ndarray
+        Streamfunction ψ solution
+    """
+    Nx, Ny = omega.shape
+    a32 = alpha**(3 / 2)
+
+    kx = fftfreq(Nx, d=dx * a32**-1) * 2 * np.pi
+    ky = fftfreq(Ny, d=dy * a32) * 2 * np.pi
+    KX, KY = np.meshgrid(kx, ky, indexing="ij")
+
+    K2 = KX**2 + KY**2
+    K2[0, 0] = 1.0  # avoid division by zero
+
+    psi_hat = -fft2(omega) / K2
+    psi_hat[0, 0] = 0.0  # zero-mean condition
+
+    return np.real(ifft2(psi_hat))
+
+
+def extract_contours(X, Y, psi, levels=40):
+    """
+    Extract contour paths of streamfunction.
+    
+    Parameters
+    ----------
+    X, Y : ndarray
+        2D meshgrid coordinates
+    psi : ndarray
+        Streamfunction values
+    levels : int or array-like
+        Number or specific levels for contour extraction
+
+    Returns
+    -------
+    contours : list of ndarray of shape (N_points, 2)
+        List of contour points coords arrays
+    """
+    fig, ax = plt.subplots(figsize=(5, 5))
+    cs = ax.contour(X, Y, psi.T, levels=levels, colors="k")
+    plt.close(fig)
+
+    contours = []
+    for path in cs.get_paths():
+        contours.append(path.vertices)
+
+    return contours
+
+
 
 def fit_centered_ellipse(x, y):
     """
-    Fit a centered ellipse to a set of (x, y) points using least squares.
+    Fit a centered ellipse to a set of (x, y) points using numpy least squares.
+
+    Parameters
+    ----------
+    x, y : ndarray
+        Coordinates of points on the ellipse
 
     Returns
     -------
@@ -74,67 +140,24 @@ def fit_centered_ellipse(x, y):
     return a, b, theta_major, e
 
 
-# ============================================================
-# Physics : vorticity an streamfunction
-# ============================================================
-def solve_streamfunction(omega, dx, dy, alpha):
+def fit_ellipses_from_contours(contours, min_points=25, max_radius=1.0):
     """
-    Solve the Poisson equation Δψ = -ω̃ using FFT in 2D.
-
+    Fit ellipses to selected contours.
+    
     Parameters
     ----------
-    omega : ndarray
-        Physical vorticity ω̃
-    dx, dy : float
-        Grid spacing in x and y
-    alpha : float
-        Collapse anisotropy parameter
-
+    contours : list of ndarray of shape (N_points, 2)
+        List of contour points coords arrays
+    min_points : int
+        Minimum number of points to consider for fitting
+    max_radius : float
+        Maximum radius of contour centroid to consider
+    
     Returns
     -------
-    psi : ndarray
-        Streamfunction ψ
+    ellipses : list of tuples
+        List of fitted ellipse parameters (a, b, theta_major, e)
     """
-    Nx, Ny = omega.shape
-    a32 = alpha**(3 / 2)
-
-    kx = fftfreq(Nx, d=dx * a32**-1) * 2 * np.pi
-    ky = fftfreq(Ny, d=dy * a32) * 2 * np.pi
-    KX, KY = np.meshgrid(kx, ky, indexing="ij")
-
-    K2 = KX**2 + KY**2
-    K2[0, 0] = 1.0  # avoid division by zero
-
-    psi_hat = -fft2(omega) / K2
-    psi_hat[0, 0] = 0.0  # zero-mean condition
-
-    return np.real(ifft2(psi_hat))
-
-
-# ============================================================
-# Contours → ellipses
-# ============================================================
-
-def extract_contours(X, Y, psi, levels=40):
-    """Extract contour paths of streamfunction (Matplotlib-robust)."""
-    fig, ax = plt.subplots(figsize=(5, 5))
-    cs = ax.contour(X, Y, psi.T, levels=levels, colors="k")
-    plt.close(fig)
-
-    contours = []
-    for path in cs.get_paths():
-        contours.append(path.vertices)
-
-    return contours
-
-
-
-def fit_ellipses_from_contours(
-    contours,
-    min_points=25,
-    max_radius=1.0,
-):
-    """Fit ellipses to selected contours."""
     ellipses = []
 
     for verts in contours:
@@ -154,12 +177,6 @@ def fit_ellipses_from_contours(
     return ellipses
 
 
-# ============================================================
-# Plotting
-# ============================================================
-import numpy as np
-import matplotlib.pyplot as plt
-
 
 def plot_streamfunction_and_ellipses(
     X, Y, psi, ellipses,
@@ -169,12 +186,24 @@ def plot_streamfunction_and_ellipses(
 ):
     """
     Plot streamfunction contours and fitted ellipses (consistent geometry).
+
+    Parameters
+    ----------
+    X, Y : ndarray
+        2D meshgrid coordinates
+    psi : ndarray
+        Streamfunction values
+    ellipses : list of tuples
+        List of fitted ellipse parameters (a, b, theta_major, e)
+    levels : int or array-like
+        Number or specific levels for contour plotting
+    xlim, ylim : float or None
+        Axis limits; if None, auto-scaled
     """
 
     fig, ax = plt.subplots(figsize=(8, 8))
     ax.set_aspect("equal")
 
-    # --- Streamfunction contours ---
     ax.contour(
         X, Y, psi.T,
         levels=levels,
@@ -214,12 +243,31 @@ def plot_streamfunction_and_ellipses(
     return fig, ax
 
 
-# ============================================================
-# High-level driver
-# ============================================================
 
 def process_single_file(path_simu, file, nz_slice=0, plot=True, n_ellipses=40, xlim=None, ylim=None):
-    """Full pipeline for a single Athena++ output."""
+    """
+    Full pipeline from a single Athena++ output to fitted ellipses.
+
+    Parameters
+    ----------
+    path_simu : str
+        Path to simulation data
+    file : str
+        Filename of Athena++ output
+    nz_slice : int
+        z-index for 2D slice extraction
+    plot : bool
+        Whether to plot streamfunction and ellipses
+    n_ellipses : int
+        Number of contour levels / ellipses to fit
+    xlim, ylim : float or None
+        Axis limits for plotting; if None, auto-scaled
+
+    Returns
+    -------
+    ellipses : list of tuples
+        List of fitted ellipse parameters (a, b, theta_major, e)
+    """
     data = open_hdf_files_with_collapse(path_simu, files=[file])
 
     x, y = data["x1"], data["x2"]
@@ -242,20 +290,46 @@ def process_single_file(path_simu, file, nz_slice=0, plot=True, n_ellipses=40, x
 
 
 
-# ============================================================
-# Script entry point
-# ============================================================
 def plot_multi_time_ellipse_profiles(
-    path_simu,
-    files,
-    time_indices,
-    nz_slice=0,
-    rmin_skip=1,
-    xmin_plot=0,
-    xmax_plot=None,
-    ylim_tuple_eta=None,
-    ylim_tuple_theta=None,
-):
+        path_simu,
+        files,
+        time_indices,
+        nz_slice=0,
+        rmin_skip=1,
+        xmin_plot=0,
+        xmax_plot=None,
+        ylim_tuple_eta=None,
+        ylim_tuple_theta=None,
+    ):
+    """
+    Plot ellipse aspect-ratio and orientation profiles over multiple times.
+
+    Parameters
+    ---------- 
+    path_simu : str
+        Path to simulation data
+    files : list of str
+        List of Athena++ output filenames
+    time_indices : list of int
+        Indices of files to process for plotting
+    nz_slice : int
+        z-index for 2D slice extraction
+    rmin_skip : int
+        Number of innermost ellipses to skip in profiles
+    xmin_plot, xmax_plot : float or None
+        x-axis limits for plots; if None, auto-scaled
+    ylim_tuple_eta : tuple or None
+        y-axis limits for aspect-ratio plot; if None, auto-scaled
+    ylim_tuple_theta : tuple or None
+        y-axis limits for orientation angle plot; if None, auto-scaled
+    
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Figure object
+    axs : ndarray of matplotlib.axes.Axes
+        Array of Axes objects
+    """
     fig, axs = plt.subplots(1, 2, figsize=(14, 6))
 
     for i in time_indices:
@@ -318,11 +392,6 @@ def plot_multi_time_ellipse_profiles(
 
 
 
-
-# ============================================================
-# Script entry point
-# ============================================================
-
 if __name__ == "__main__":
 
     from athena_collapse_analysis.config import RAW_DIR
@@ -330,6 +399,7 @@ if __name__ == "__main__":
     path_simu = os.path.join(RAW_DIR, "typical_simu_20251311/")
     files = get_hdf_files(path_simu)
 
+    # Process a single file and plot ellipses
     ellipses = process_single_file(
         path_simu,
         files[-1],
@@ -340,8 +410,7 @@ if __name__ == "__main__":
         ylim=1.5,
     )
 
-    print(f"Found {len(ellipses)} ellipses")
-
+    # Plot multi-time ellipse profiles
     plot_multi_time_ellipse_profiles(
         path_simu,
         files,

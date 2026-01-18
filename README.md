@@ -17,6 +17,9 @@ This project focuses on the **local dynamics of vortices embedded in a spherical
 
 The simulations are run in a **local Cartesian box with imposed collapse**, while the analysis is performed *a posteriori* using this package.
 
+
+![A 3-day drifter/field comparison](save_plots/L3_Scenes/L3_Scenes_GOODBAD_best_filtering/GOOD_norma_scene_13.png)
+
 ---
 
 ## Features

@@ -11,6 +11,8 @@ Two display modes:
 - `vort_type='physical'`: rescaled physical vorticity using collapse
     parameters (S, α) and rescaled coordinates.
 
+Notes
+-----
 A crop region can be specified for zoomed-in views. In that case the movie shows only
 the selected area.
 vmin and vmax control the color scale limits.
@@ -68,31 +70,21 @@ def make_vorticity_movie(path_simu, outname=None,
     if outname is None:
         outname = f"vorticity_movie_{vort_type}.mp4"
 
-    # -------------------------------
-    # 1. Collect files
-    # -------------------------------
     files = get_hdf_files(path_simu)
     Nframes = len(files)
     print(f"Found {Nframes} frames.")
 
-    # -------------------------------
-    # 2. Load geometry + first collapse snapshot
-    # -------------------------------
+    # load geometry from first file
     data0 = open_hdf_files_with_collapse(path_simu, [files[0]], read_every=1)
     x = data0["x1"]
     y = data0["x2"]
     Nz = len(data0["x3"])
-    # choose the z-index to slice (use provided or use center)
-    midz = nz_slice if nz_slice is not None else (Nz // 2)
+    midz = nz_slice if nz_slice is not None else (Nz // 2) # choose the z-index to slice (use provided or use center)
 
-    # grid spacing in each in-plane direction
     dx = x[1] - x[0]
     dy = y[1] - y[0]
 
-
-    # -------------------------------
-    # 3. Prepare figure
-    # -------------------------------
+    # Prepare figure and axis
     fig, ax = plt.subplots(1, 1, figsize=(10, 6), constrained_layout=True)
     cbar = None
 
@@ -128,16 +120,11 @@ def make_vorticity_movie(path_simu, outname=None,
         print("Y:", Ymin_global, Ymax_global)
 
 
-    # -------------------------------
-    # 4. Init function
-    # -------------------------------
+
     def init():
         # nothing to initialise — each frame clears and redraws
         return []
 
-    # -------------------------------
-    # 5. Update function
-    # -------------------------------
     def update(i):
         file_i = files[i]
         print(f"[{i+1}/{Nframes}] Loading {file_i}")
@@ -147,33 +134,29 @@ def make_vorticity_movie(path_simu, outname=None,
         vy = data["v2"][0, :, :, midz]
         t = data["time"][0]
 
-        # compute spatial derivatives: ∂v_y/∂x and ∂v_x/∂y
+        # compute vorticity based on selected mode
         dvy_dx = np.gradient(vy, dx, axis=0)
         dvx_dy = np.gradient(vx, dy, axis=1)
-
-        # -------------------------------
-        # Compute vorticity
-        # -------------------------------
+        
         if vort_type == "simulation":
             vort = dvy_dx - dvx_dy
             S, alpha = 1.0, 1.0
             Xplot, Yplot = x, y
 
         elif vort_type == "physical":
-            omegaTilda, S, alpha = compute_physical_vorticity(data)
-
-            vort = omegaTilda
-
-            # Rescaled coordinates
+            vort, S, alpha = compute_physical_vorticity(data)
+            # Rescaled physical coordinates
             Xplot = x * alpha**(-3/2)
             Yplot = y * alpha**(3/2)
 
         else:
             raise ValueError("vort_type must be 'simulation' or 'physical'.")
 
+
         # -------------------------------
-        # Crop if requested
+        # Plotting parameters
         # -------------------------------
+
         if crop is not None:
             try:
                 xmin, xmax, ymin, ymax = crop
@@ -192,26 +175,18 @@ def make_vorticity_movie(path_simu, outname=None,
         else:
             vort_plot = vort
 
-        # -------------------------------
-        # Determine color range (defaults: vmin=0, vmax=data-driven)
-        # Falls back to symmetric range if user-provided limits are invalid
-        # -------------------------------
+        # Determine color range
         vmin_plot = 0.0 if vmin is None else vmin
         vmax_plot = np.max(vort_plot) if vmax is None else vmax
         if vmax_plot <= vmin_plot:
             vmax_plot = np.max(np.abs(vort_plot))
             vmin_plot = -vmax_plot
 
-        # -------------------------------
-        # Clear axis and draw new frame
-        # -------------------------------
         nonlocal cbar
 
         ax.clear()  # remove previous artists
 
-        # set a fixed viewing window for physical coordinates so the
-        # movie doesn't jump between frames; for simulation mode we
-        # leave the axes autoscaled unless a crop was requested
+        # set a fixed viewing window for physical coordinates if required
         if vort_type == "physical":
             if crop is not None:
                 xmin, xmax, ymin, ymax = crop
@@ -221,12 +196,12 @@ def make_vorticity_movie(path_simu, outname=None,
                 ax.set_xlim(Xmin_global, Xmax_global)
                 ax.set_ylim(Ymin_global, Ymax_global)
 
-        # draw vorticity (transpose to match display orientation)
+        # draw vorticity
         pc = ax.pcolormesh(Xplot, Yplot, vort_plot.T,
                            cmap=cmap, vmin=vmin_plot, vmax=vmax_plot,
                            shading='auto')
 
-        # replace colorbar
+        # replace colorbar at each frame
         if cbar is not None:
             try:
                 cbar.remove()
@@ -235,7 +210,7 @@ def make_vorticity_movie(path_simu, outname=None,
         cbar = fig.colorbar(pc, ax=ax)
         cbar.set_label('vorticity')
 
-        # --- add title
+        # Title and labels
         if vort_type == "simulation":
             ax.set_title(f'vorticity (simulation) at t = {t:.3f}')
         else:
@@ -249,8 +224,10 @@ def make_vorticity_movie(path_simu, outname=None,
         else:
             ax.set_aspect('equal')
 
+
+
     # -------------------------------
-    # 6. Create animation
+    # Animation generation
     # -------------------------------
     ani = animation.FuncAnimation(fig, update,
                                   frames=Nframes,
@@ -265,7 +242,6 @@ def make_vorticity_movie(path_simu, outname=None,
 
 if __name__ == "__main__":
     from athena_collapse_analysis.config import RAW_DIR
-    # Example simulation path
     path_simu = os.path.join(RAW_DIR, "typical_simu_20251311/")
 
     # --- Make the vorticity movie ---

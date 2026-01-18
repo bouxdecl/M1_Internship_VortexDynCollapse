@@ -25,6 +25,10 @@ def plot_initial_profiles(path_file, show=True, save_path=None):
     ----------
     path_file : str
         Path to a single Athena++ .athdf file.
+    show: bool, default True
+        If True, display the figure.
+    save_path : str or None, default None
+        If not None, save the figure to this file path.
     
     Returns
     -------
@@ -41,8 +45,7 @@ def plot_initial_profiles(path_file, show=True, save_path=None):
     vx = data["v1"]
     vy = data["v2"]
 
-    # --- Compute vorticity ---
-    # vort_z = ∂v_y/∂x - ∂v_x/∂y
+    # --- Compute vorticity --- vort_z = ∂v_y/∂x - ∂v_x/∂y
     dvydx = np.gradient(vy, x, axis=1)
     dvxdy = np.gradient(vx, y, axis=2)
     vortz = dvydx - dvxdy  # shape (Nt, Nx, Ny, 1)

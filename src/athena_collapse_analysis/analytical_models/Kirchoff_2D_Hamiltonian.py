@@ -31,13 +31,9 @@ from scipy.integrate import solve_ivp, cumtrapz
 from scipy.interpolate import interp1d
 
 
-# ============================================================
-# Hamiltonian system
-# ============================================================
-
 def hamiltonian_rhs(tau, z, w0, eps_func, t_from_tau):
     """
-    Hamiltonian equations in (p, q) variables.
+    Hamiltonian equations Right Side  in (p, q) variables.
     
     From Hurst et al., 2021 https://doi.org/10.1103/PhysRevFluids.6.054703
 
@@ -128,9 +124,7 @@ def integrate_hamiltonian(tau_max, w0, eps_func, t_from_tau,
     return sol
 
 
-# ============================================================
 # Parameter conversions
-# ============================================================
 
 def q0_from_eps(eps):
     """
@@ -204,20 +198,17 @@ def compute_eps_from_strain(time, alpha_vals, S_vals, w0):
     eps_func : callable
         Strain parameter as function of time
     """
-    # Compute α̇ using centered differences (more accurate than forward/backward)
     alpha_dot = np.gradient(alpha_vals, time)
     
-    # ε(t) = -α̇/α / (w0 * α * S⁻²)
-    eps_vals = -3/2 * (alpha_dot / alpha_vals) / (w0 * alpha_vals * S_vals**(-2))
-    
+    eps_vals = -3/4 * (alpha_dot / alpha_vals) / (w0 * alpha_vals * S_vals**(-2))
     eps_func = interp1d(time, eps_vals, kind='linear', fill_value='extrapolate')
     
     return eps_func
 
 
-# ============================================================
+
 # Visualization
-# ============================================================
+
 
 def plot_phase_space_simple(sol, w0, t_from_tau, eps_func, tmax_plot=None):
     """
@@ -442,6 +433,9 @@ def plot_hamiltonian_solution(sol, w0, t_from_tau, eps_func,
     return fig
 
 
+
+
+
 # ============================================================
 # Main simulation runner
 # ============================================================
@@ -540,9 +534,7 @@ def run_hamiltonian_simulation(time, alpha_vals, S_vals, w0,
     return sol, diagnostics
 
 
-# ============================================================
-# Example usage
-# ============================================================
+# Examples of usage
 
 def example_oscillating_flow():
     """
@@ -564,7 +556,7 @@ def example_oscillating_flow():
     z0 = (0.1, 0.1)  # Start slightly away from origin
     
     # Run simulation
-    sol, figs, diagnostics = run_hamiltonian_simulation(
+    sol, diagnostics = run_hamiltonian_simulation(
         time, alpha_vals, S_vals, w0, z0=z0, nsteps=2000, plot=True
     )
     
@@ -593,7 +585,7 @@ def example_expansion_flow():
     z0 = (0.0, 0.0)
     
     # Run simulation
-    sol, figs, diagnostics = run_hamiltonian_simulation(
+    sol, diagnostics = run_hamiltonian_simulation(
         time, alpha_vals, S_vals, w0, z0=z0, nsteps=1500, plot=True
     )
     
@@ -647,7 +639,7 @@ def example_exponential_decay_constant_product():
     print(f"  S(0) = {S_vals[0]:.4f}, S(t_end) = {S_vals[-1]:.4f}")
     
     # Run simulation
-    sol, figs, diagnostics = run_hamiltonian_simulation(
+    sol, diagnostics = run_hamiltonian_simulation(
         time, alpha_vals, S_vals, w0, z0=z0, nsteps=2000, plot=True
     )
     

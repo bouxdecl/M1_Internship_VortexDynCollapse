@@ -1,0 +1,20 @@
+
+
+### 1er pour mercredi :
+- comparison 2D Hamiltonian vs. simu  --> plots
+- 3D analytical model
+- comparaison analytique entre modèles
+- first Readme
+
+### POUR LA REMISE PACKAGE:
+- add athena++ code and clean it
+- final README
+
+- packaging
+- documentation SPHINX ?
+- relance simu avec bon profil initial de vorti
+
+
+### Plus tard:
+- lancer simu 3D
+- compa 3D avec model

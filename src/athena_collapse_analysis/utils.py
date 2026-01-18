@@ -1,5 +1,5 @@
 """
-Functions to compute derived quantities and decompositions (pressure, collapse parameters, metric_transform) from Athena++ data.
+General utility functions for Athena++ collapse analysis.
 """
 
 import numpy as np
@@ -80,17 +80,7 @@ def compute_physical_vorticity(data, nz_slice=0):
 def collapse_param_decomposition(R, Lz, R_0=1.0, Lz_0=1.0):
     """
     Decompose collapse diagnostics into scale and anisotropy parameters.
-
-    From the collapse global param `R`and `Lz`, constructs
-
-    * a scale parameter ``S`` defined as::
-
-          S = ( R / R[0]**2 * Lz / Lz[0] )**(1/3)
-
-    * an anisotropy parameter ``alpha`` defined as::
-
-          alpha = (R / R[0]) / (Lz / Lz[0])
-
+    
     Parameters
     ----------
     R : ndarray of shape (Nt,)

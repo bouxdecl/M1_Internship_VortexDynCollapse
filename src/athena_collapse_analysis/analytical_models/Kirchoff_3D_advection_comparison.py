@@ -20,164 +20,30 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 # Import simulation data extraction (with caching)
-from extract_simulation_data import (
+from athena_collapse_analysis.analysis.extract_2D_hamiltonian_model_parameters import (
     extract_simulation_data,
 )
 
+
 # Import 3D vortex tube model
-from Kirchoff_3D_advection import (
+from athena_collapse_analysis.analytical_models.Kirchoff_3D_advection import (
     integrate_system,
-    orthonormal_basis_perp,
+    extract_pq_from_3d
 )
+
+# Import 2D Hamiltonian utilities for plotting
+from athena_collapse_analysis.analytical_models.Kirchoff_2D_Hamiltonian import (
+    compute_stretched_time,
+    compute_eps_from_strain,
+    q0_from_eps,
+)
+
+
 
 # ============================================================
 # Extract (p, q) from 3D vortex tube deformation
 # ============================================================
 
-def compute_aspect_ratio_3d(F, omega0):
-    """
-    Compute aspect ratio of vortex tube cross-section.
-    
-    Parameters
-    ----------
-    F : ndarray (3, 3)
-        Deformation gradient tensor
-    omega0 : ndarray (3,)
-        Initial vorticity vector
-    
-    Returns
-    -------
-    eta : float
-        Aspect ratio (major/minor axis)
-    """
-    # Get basis for plane perpendicular to omega0
-    e1, e2 = orthonormal_basis_perp(omega0)
-    P = np.vstack([e1, e2])  # 2×3 projector
-    
-    # Right Cauchy-Green tensor
-    C = F.T @ F
-    
-    # Restrict to cross-section
-    C2 = P @ C @ P.T
-    
-    # Eigenvalues give squared semi-axes
-    eigs = np.linalg.eigvalsh(C2)
-    
-    # Aspect ratio
-    eta = np.sqrt(eigs.max() / eigs.min())
-    
-    return eta
-
-
-def compute_orientation_angle_3d(F, omega0):
-    """
-    Compute orientation angle of vortex tube cross-section.
-    
-    For omega0 = (0, w0y, 0), this measures the angle in the zx-plane.
-    
-    Parameters
-    ----------
-    F : ndarray (3, 3)
-        Deformation gradient tensor
-    omega0 : ndarray (3,)
-        Initial vorticity vector (should be (0, w0y, 0))
-    
-    Returns
-    -------
-    theta : float
-        Orientation angle in radians (measured from z-axis towards x-axis)
-    """
-    # Get basis for plane perpendicular to omega0 (y-axis)
-    # e1, e2 span the zx-plane
-    e1, e2 = orthonormal_basis_perp(omega0)
-    P = np.vstack([e1, e2])  # 2×3 projector
-    
-    # Right Cauchy-Green tensor
-    C = F.T @ F
-    
-    # Restrict to cross-section
-    C2 = P @ C @ P.T
-    
-    # Eigenvectors give principal axes
-    eigvals, eigvecs = np.linalg.eigh(C2)
-    
-    # Principal direction (major axis) in (e1, e2) coordinates
-    idx_max = np.argmax(eigvals)
-    major_axis_2d = eigvecs[:, idx_max]
-    
-    # Back to 3D
-    major_axis_3d = major_axis_2d[0] * e1 + major_axis_2d[1] * e2
-    
-    # For omega0 = (0, w0y, 0), the cross-section is in zx-plane
-    # Angle is measured from z-axis (index 2) towards x-axis (index 0)
-    theta = np.arctan2(major_axis_3d[0], major_axis_3d[2])
-    
-    return theta
-
-
-def r_pol(eta):
-    """
-    Convert aspect ratio to polar radius coordinate.
-    
-    r = sqrt(2*(η - 1)² / η)
-    
-    Parameters
-    ----------
-    eta : float or array_like
-        Aspect ratio (a/b)
-    
-    Returns
-    -------
-    r : float or array_like
-        Polar radius coordinate
-    """
-    return np.sqrt(2 * (eta - 1)**2 / eta)
-
-
-def extract_pq_from_3d(F_t, omega0):
-    """
-    Extract (p, q) coordinates from 3D vortex tube evolution.
-    
-    For omega0 = (0, w0y, 0), extracts deformation in the zx-plane.
-    
-    Parameters
-    ----------
-    F_t : ndarray (n_times, 3, 3)
-        Deformation gradient tensors at each time
-    omega0 : ndarray (3,)
-        Initial vorticity vector (should be (0, w0y, 0))
-    
-    Returns
-    -------
-    p : ndarray
-        p coordinate array
-    q : ndarray
-        q coordinate array
-    """
-    n_times = len(F_t)
-    p = np.zeros(n_times)
-    q = np.zeros(n_times)
-    
-    for i in range(n_times):
-        # Compute aspect ratio and orientation
-        eta = compute_aspect_ratio_3d(F_t[i], omega0)
-        theta = compute_orientation_angle_3d(F_t[i], omega0)
-        
-        # Convert to (p, q) using same transformation as simulation
-        angle = 2 * theta
-        r_coord = r_pol(eta)
-        
-        p[i] = r_coord * np.cos(angle)
-        q[i] = r_coord * np.sin(angle)
-    
-    return p, q
-
-# Import 2D Hamiltonian utilities for plotting
-from Kirchoff_2D_Hamiltonian import (
-    compute_stretched_time,
-    compute_eps_from_strain,
-    q0_from_eps,
-)
 
 from athena_collapse_analysis.io.ath_io import get_hdf_files
 
@@ -185,7 +51,6 @@ from athena_collapse_analysis.io.ath_io import get_hdf_files
 # ============================================================
 # Comparison plotting
 # ============================================================
-
 def plot_3d_vs_simulation(t_3d, p_3d, q_3d, sim_data, eps_func, tmax_plot=None):
     """
     Create comprehensive comparison plot between 3D theory and simulation.
@@ -211,12 +76,13 @@ def plot_3d_vs_simulation(t_3d, p_3d, q_3d, sim_data, eps_func, tmax_plot=None):
         Matplotlib figure
     """
     fig = plt.figure(figsize=(15, 5))
-    
+    q_3d, p_3d = q_3d/2, -p_3d/2
+
     # --- Phase space ---
     ax1 = plt.subplot(1, 3, 1)
     ax1.plot(q_3d, p_3d, lw=2, label="3D Vortex Tube", alpha=0.8)
     ax1.plot(sim_data['q_sim'], sim_data['p_sim'], lw=2, 
-             label="Simulation", alpha=0.8, ls='--')
+             label="Simulation", alpha=0.8, ls='-')
     
     # Stable point
     eps_final = eps_func(t_3d[-1])
@@ -234,9 +100,9 @@ def plot_3d_vs_simulation(t_3d, p_3d, q_3d, sim_data, eps_func, tmax_plot=None):
     
     # --- q(t) ---
     ax2 = plt.subplot(1, 3, 2)
-    ax2.plot(t_3d, q_3d/2, label="3D Vortex Tube", lw=2, alpha=0.8)
+    ax2.plot(t_3d, q_3d, label="3D Vortex Tube", lw=2, alpha=0.8)
     ax2.plot(sim_data['time'], sim_data['q_sim'], label="Simulation", 
-             lw=2, alpha=0.8, ls='--')
+             lw=2, alpha=0.8, ls='-')
     ax2.plot(sim_data['time'], q0_from_eps(eps_func(sim_data['time'])), ':', 
              label='Stable point', lw=1.5, color='green')
     
@@ -250,9 +116,9 @@ def plot_3d_vs_simulation(t_3d, p_3d, q_3d, sim_data, eps_func, tmax_plot=None):
     
     # --- p(t) ---
     ax3 = plt.subplot(1, 3, 3)
-    ax3.plot(t_3d, p_3d/-2, label="3D Vortex Tube", lw=2, alpha=0.8)
+    ax3.plot(t_3d, p_3d, label="3D Vortex Tube", lw=2, alpha=0.8)
     ax3.plot(sim_data['time'], sim_data['p_sim'], label="Simulation", 
-             lw=2, alpha=0.8, ls='--')
+             lw=2, alpha=0.8, ls='-')
     ax3.axhline(0, label='Stable point', color='green', lw=1.5, ls=':')
     
     ax3.set_xlabel('Time', fontsize=12)
@@ -268,78 +134,9 @@ def plot_3d_vs_simulation(t_3d, p_3d, q_3d, sim_data, eps_func, tmax_plot=None):
     return fig
 
 
-def plot_difference_metrics(t_3d, p_3d, q_3d, sim_data):
-    """
-    Plot difference metrics between 3D theory and simulation.
-    
-    Parameters
-    ----------
-    t_3d : ndarray
-        3D theory time array
-    p_3d : ndarray
-        3D theory p values
-    q_3d : ndarray
-        3D theory q values
-    sim_data : dict
-        Simulation data dictionary
-    
-    Returns
-    -------
-    fig : Figure
-        Matplotlib figure
-    """
-    # Interpolate simulation to 3D time points
-    p_sim_interp = interp1d(sim_data['time'], sim_data['p_sim'], 
-                            kind='linear', bounds_error=False, 
-                            fill_value='extrapolate')
-    q_sim_interp = interp1d(sim_data['time'], sim_data['q_sim'], 
-                            kind='linear', bounds_error=False, 
-                            fill_value='extrapolate')
-    
-    p_sim_at_3d = p_sim_interp(t_3d)
-    q_sim_at_3d = q_sim_interp(t_3d)
-    
-    # Compute differences
-    dp = p_3d - p_sim_at_3d
-    dq = q_3d - q_sim_at_3d
-    
-    # Euclidean distance
-    distance = np.sqrt(dp**2 + dq**2)
-    
-    fig, axs = plt.subplots(1, 3, figsize=(15, 4))
-    
-    # Δp
-    axs[0].plot(t_3d, dp, lw=2, color='C0')
-    axs[0].axhline(0, color='gray', lw=0.5, ls='--')
-    axs[0].set_xlabel('Time', fontsize=12)
-    axs[0].set_ylabel('Δp', fontsize=12)
-    axs[0].set_title('p difference (3D - Simulation)', fontsize=13)
-    axs[0].grid(alpha=0.3)
-    
-    # Δq
-    axs[1].plot(t_3d, dq, lw=2, color='C1')
-    axs[1].axhline(0, color='gray', lw=0.5, ls='--')
-    axs[1].set_xlabel('Time', fontsize=12)
-    axs[1].set_ylabel('Δq', fontsize=12)
-    axs[1].set_title('q difference (3D - Simulation)', fontsize=13)
-    axs[1].grid(alpha=0.3)
-    
-    # Euclidean distance
-    axs[2].plot(t_3d, distance, lw=2, color='C2')
-    axs[2].set_xlabel('Time', fontsize=12)
-    axs[2].set_ylabel('|Δ(p,q)|', fontsize=12)
-    axs[2].set_title('Euclidean distance', fontsize=13)
-    axs[2].grid(alpha=0.3)
-    
-    plt.tight_layout()
-    
-    return fig
-
-
 # ============================================================
 # Main comparison workflow
 # ============================================================
-
 def run_3d_simulation_comparison(path_simu, files=None, nz_slice=0, 
                                  n_ellipses=40, ellipse_index=1,
                                  nsteps=500, tmax_plot=None,

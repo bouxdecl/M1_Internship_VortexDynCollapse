@@ -2,12 +2,11 @@
 Input/Output utilities for Athena++ simulation data.
 ====================================================
 
-This module provides tools for reading Athena++ simulation output.
-It includes functions to return a unified dictionary suitable for analysis or visualization.
+This module provides functions for reading Athena++ simulation output.
+It includes the `open_hdf_files_with_collapse()` function to return a unified dictionary suitable for analysis or visualization.
 
 * read collapse diagnostics from ``.hst`` history files,
-* load conservative fields with optional spatial and temporal downsampling,
-* compute derived quantities (e.g. pressure, collapse decomposition),
+* load conservative fields from ``.athdf`` with optional spatial and temporal downsampling,
 
 Notes
 -----

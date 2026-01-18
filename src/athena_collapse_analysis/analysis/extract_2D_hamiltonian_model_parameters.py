@@ -15,13 +15,6 @@ Extracted data:
 - Derived (p, q) coordinates
 
 The data is cached to avoid reprocessing large simulation datasets.
-
-Usage:
-    python extract_simulation_data.py
-    
-    # Or from another script:
-    from extract_simulation_data import extract_and_cache_simulation_data
-    data = extract_and_cache_simulation_data(path_simu)
 """
 
 import os
@@ -36,7 +29,6 @@ from athena_collapse_analysis.io.ath_io import (
     open_hdf_files_with_collapse,
 )
 from athena_collapse_analysis.utils import (
-    collapse_param_decomposition,
     compute_physical_vorticity,
 )
 
@@ -88,14 +80,11 @@ def extract_pq_from_ellipses(ellipse_params_arr, ellipse_index=1):
     b = ellipse_params_arr[:, ellipse_index, 1]
     theta = ellipse_params_arr[:, ellipse_index, 2]
     
-    # Compute angle (factor of 2)
+    # Compute angle (factor of 2) and r coordinate from aspect ratio, then convert to (p, q)
     angle = 2 * theta
-    
-    # Compute r coordinate from aspect ratio
     eta = a / b
     r_coord = r_pol(eta)
     
-    # Convert to (p, q)
     p = r_coord * np.cos(angle)
     q = r_coord * np.sin(angle)
     
@@ -148,8 +137,6 @@ def save_simulation_data(data_dict, cache_file):
     """
     with open(cache_file, 'wb') as f:
         pickle.dump(data_dict, f, protocol=pickle.HIGHEST_PROTOCOL)
-    print(f"✓ Saved data to cache: {cache_file}")
-
 
 def load_simulation_data(cache_file):
     """
@@ -167,7 +154,7 @@ def load_simulation_data(cache_file):
     """
     with open(cache_file, 'rb') as f:
         data_dict = pickle.load(f)
-    print(f"✓ Loaded data from cache: {cache_file}")
+    print(f"Loaded data from cache: {cache_file}")
     return data_dict
 
 
@@ -214,7 +201,8 @@ def extract_simulation_data(path_simu, files, nz_slice=0,
         - 'ellipse_params': full ellipse parameter array (n_times, n_ellipses, 4)
         - 'metadata': dict with extraction parameters
     """
-    # Check for cached data
+
+    # IF CACHED EXISTS
     cache_file = get_cache_filename(path_simu, n_ellipses, ellipse_index)
     
     if use_cache and not force_recompute and os.path.exists(cache_file):
@@ -230,14 +218,14 @@ def extract_simulation_data(path_simu, files, nz_slice=0,
                 return data_dict
             else:
                 if verbose:
-                    print(f"⚠ Cache has {len(data_dict['time'])} files, but found {len(files)} files")
+                    print(f"Cache has {len(data_dict['time'])} files, but found {len(files)} files")
                     print("  Recomputing data...")
         except Exception as e:
             if verbose:
-                print(f"⚠ Error loading cache: {e}")
+                print(f"Error loading cache: {e}")
                 print("  Recomputing data...")
     
-    # Compute data from scratch
+    # ELSE, COMPUTE FROM FILES
     if verbose:
         print("Computing simulation data from HDF5 files...")
     
@@ -254,25 +242,19 @@ def extract_simulation_data(path_simu, files, nz_slice=0,
         print(f"Processing {n_files} simulation files...")
     
     for i, file in enumerate(files):
-        # Load data
         data = open_hdf_files_with_collapse(path_simu, files=[file])
-        
-        # Extract time and collapse parameters
-        time_arr[i] = data["time"][0]
-        
-        # Compute physical vorticity and parameters
         omega, S, alpha = compute_physical_vorticity(data, nz_slice)
-        
+
+        time_arr[i] = data["time"][0]
+        alpha_arr[i] = alpha
+        S_arr[i] = S
+
         # Get center vorticity for w0
         mid_x, mid_y = omega.shape[0] // 2, omega.shape[1] // 2
         if i == 0:
             w0 = omega[mid_x, mid_y]
         w_arr[i] = omega[mid_x, mid_y]
-        
-        # Store parameters
-        alpha_arr[i] = alpha
-        S_arr[i] = S
-        
+            
         # Fit ellipses
         ellipses = process_single_file(
             path_simu,
@@ -289,8 +271,6 @@ def extract_simulation_data(path_simu, files, nz_slice=0,
     
     # Convert ellipse list to array
     max_ellipses = max(len(e) for e in ellipse_params_arr)
-    
-    # Create padded array
     ellipse_array = np.zeros((n_files, max_ellipses, 4))
     for i, ellipses in enumerate(ellipse_params_arr):
         n_ell = len(ellipses)
@@ -335,72 +315,9 @@ def extract_simulation_data(path_simu, files, nz_slice=0,
     return data_dict
 
 
-# ============================================================
-# Convenience wrapper
-# ============================================================
-
-def extract_and_cache_simulation_data(path_simu, nz_slice=0, n_ellipses=40,
-                                     ellipse_index=1, use_cache=True,
-                                     force_recompute=False, verbose=True):
-    """
-    Extract simulation data with automatic file detection.
-    
-    This is a convenience wrapper that automatically finds HDF5 files
-    in the simulation directory.
-    
-    Parameters
-    ----------
-    path_simu : str
-        Path to simulation directory
-    nz_slice : int, optional
-        z-slice to analyze (default: 0)
-    n_ellipses : int, optional
-        Number of ellipse contours (default: 40)
-    ellipse_index : int, optional
-        Which ellipse to track (default: 1)
-    use_cache : bool, optional
-        Use cached data if available (default: True)
-    force_recompute : bool, optional
-        Force recomputation (default: False)
-    verbose : bool, optional
-        Print progress (default: True)
-    
-    Returns
-    -------
-    data_dict : dict
-        Extracted simulation data
-    """
-    # Find HDF5 files
-    files = get_hdf_files(path_simu)
-    
-    if verbose:
-        print("=" * 70)
-        print("Simulation Data Extraction")
-        print("=" * 70)
-        print(f"\nSimulation directory: {path_simu}")
-        print(f"Found {len(files)} HDF5 files")
-        print(f"Parameters: nz_slice={nz_slice}, n_ellipses={n_ellipses}, ellipse_index={ellipse_index}")
-        print()
-    
-    # Extract data
-    data = extract_simulation_data(
-        path_simu, files,
-        nz_slice=nz_slice,
-        n_ellipses=n_ellipses,
-        ellipse_index=ellipse_index,
-        use_cache=use_cache,
-        force_recompute=force_recompute,
-        verbose=verbose,
-    )
-    
-    if verbose:
-        print("\n" + "=" * 70)
-    
-    return data
-
 
 # ============================================================
-# Visualization utilities
+# Plot the results
 # ============================================================
 
 def plot_extracted_data(data_dict, save_path=None):
@@ -484,19 +401,21 @@ def plot_extracted_data(data_dict, save_path=None):
     return fig
 
 
-# ============================================================
-# Script entry point
-# ============================================================
 
+
+
+# ============================================================
 if __name__ == "__main__":
     from athena_collapse_analysis.config import RAW_DIR
     
     # Simulation path
     path_simu = os.path.join(RAW_DIR, "typical_simu_20251311/")
-    
+    files = get_hdf_files(path_simu)
+
     # Extract data (will use cache if available)
-    data = extract_and_cache_simulation_data(
+    data = extract_simulation_data(
         path_simu,
+        files,
         nz_slice=0,
         n_ellipses=40,
         ellipse_index=1,

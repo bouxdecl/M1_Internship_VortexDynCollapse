@@ -33,9 +33,29 @@ def plot_vorticity(path_file, file, show=True, save_path=None,
     """
     Plot vorticity or physical (rescaled) vorticity from one Athena++ file.
 
+    Parameters
+    ----------
+    path_file : str
+        Path to the simulation directory.
+    file : str
+        Path to a single Athena++ .athdf file.
+    show: bool, default True
+        If True, display the figure.
+    save_path : str or None, default None
+        If not None, save the figure to this file path.
+    vmin : float, default 0.0
+        Minimum value for color scale.
+    vmax : float or None, default None
+        Maximum value for color scale. If None, set to max(vorticity).
+    cmap : str, default 'RdBu_r'
+        Matplotlib colormap name.
+    nz_slice : int, default 0
+        Index of the z-slice to plot.
     vort_type : {"simulation", "physical"}
         "simulation" → ω = dv_y/dx − dv_x/dy
         "physical"   → ω̃ using metric coefficients (S, α) and rescaled coords
+    crop : tuple of 4 floats or None, default None
+        If not None, crop the plot to (xmin, xmax, ymin, ymax).
     """
 
     # --- Load data (primitive variables) ---
