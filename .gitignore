@@ -33,15 +33,6 @@ Thumbs.db
 build/
 dist/
 
-# all media files
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.svg
-*.avi
-*.mp4
-
 # Ignore everything inside output/
 data/
 
